@@ -1,0 +1,12 @@
+services:
+  dev:
+    build: .
+    container_name: humanoid_ppo_dev
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/workspace
+    environment:
+      - MUJOCO_GL=osmesa
+    command: /bin/bash
