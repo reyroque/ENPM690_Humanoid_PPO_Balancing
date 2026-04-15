@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Logs / Training Outputs
+logs/
+checkpoints/
+tensorboard/
+runs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Docker / Temp
+*.log
+*.tmp
+
+# Build Artifacts
+build/
+dist/
+*.egg-info/
+
+# MuJoCo / Cache
+.mujoco/
+
+# Local Environment Files
+.env

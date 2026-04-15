@@ -1,0 +1,7 @@
+services:
+  dev:
+    environment:
+      - DISPLAY=${DISPLAY}
+      - MUJOCO_GL=glfw
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
