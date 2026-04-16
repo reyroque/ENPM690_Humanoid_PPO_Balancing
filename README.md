@@ -4,7 +4,7 @@ ENPM690 Final Project: Self-Balancing Humanoid Robot Using Reinforcement Learnin
 ---
 Group Members:
 - Rey Roque (120498626)
-- Kyle DeGuzman ()
+- Kyle DeGuzman (120452062)
 ---
 
 # Docker Environment Setup
