@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 
+# Run this in the terminal before running this file:
+#export PYTHONPATH=.
+#python3 rl/train.py
+
 class FCNetwork(nn.Module):
     '''A Fully Connected Neural Network class.'''
     def __init__(self, input_dim: int, output_dim: int) -> None:
