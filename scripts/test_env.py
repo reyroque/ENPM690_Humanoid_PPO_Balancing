@@ -39,4 +39,6 @@ for i in range(1000):
         print("Episode timed out")
         break
 
+input("Press Enter to close the window.")
+
 env.close()
