@@ -4,7 +4,7 @@ import torch.nn as nn
 from rl.envs.g1_balance_env import G1BalanceEnv
 from rl.ppo.model import ActorCritic
 from rl.ppo.buffer import RolloutBuffer
-from rl.ppo.trainer import compute_gae
+from rl.ppo.trainer import compute_gae, update_ppo
 
 # Run this in the terminal before running this file:
 #export PYTHONPATH=.

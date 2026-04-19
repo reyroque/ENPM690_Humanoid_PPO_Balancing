@@ -2,7 +2,7 @@
 # (loss.backward()), update model weights.
 
 import torch
-from model import ActorCritic
+from rl.ppo.model import ActorCritic
 
 def compute_gae(
     rewards: list[float], 
