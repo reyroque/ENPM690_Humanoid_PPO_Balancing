@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
         # Reset if the episode ends.
         if done or trunc:
-            print("Episode ended, resetting environment.")
+            # print("Episode ended, resetting environment.")
             state, _ = env.reset()
     
     # Compute the GAE values (advantages and returns).
@@ -152,7 +152,9 @@ if __name__ == "__main__":
 
     # PPO updates over multiple epochs.
     NUM_EPOCHS = 4
-    for _ in range(NUM_EPOCHS):
+    # List of losses for average at the end.
+    losses = []
+    for epoch in range(NUM_EPOCHS):
         # Compute the loss.
         loss = update_ppo(
             model,
@@ -163,6 +165,15 @@ if __name__ == "__main__":
             returns,
             advantages
         )
+        losses.append(loss)
+        # Print the loss for each epoch.
+        print(f"PPO Epoch {epoch}: Loss = {loss:.4f}")
+    # Find the average loss.
+    avg_loss = sum(losses) / len(losses)
+    print(f"Avg Loss: {avg_loss:.4f}")
+
+    # Save the trained model.
+    torch.save(model.state_dict(), "ppo_model.pth")
 
     # Clear the buffer by calling the clear function. Otherwise, data
     # will continue accumulating.

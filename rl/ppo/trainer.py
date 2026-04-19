@@ -2,15 +2,18 @@
 # (loss.backward()), update model weights.
 
 import torch
+
 from rl.ppo.model import ActorCritic
 
+
 def compute_gae(
-    rewards: list[float], 
-    values: list[torch.Tensor], 
-    dones: list[bool], 
-    gamma: float=0.99, 
-    lam: float=0.95) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
-    '''Function to compute the Generalized Advantage Estimation (GAE).
+    rewards: list[float],
+    values: list[torch.Tensor],
+    dones: list[bool],
+    gamma: float = 0.99,
+    lam: float = 0.95,
+) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
+    """Function to compute the Generalized Advantage Estimation (GAE).
 
     Args:
         rewards (list[float]): A list of scalar rewards from the environment.
@@ -18,10 +21,10 @@ def compute_gae(
         dones (list[bool]): A list of booleans indicating if the episode terminated or not.
         gamma (float): Hyperparameter value.
         lam (float): Hyperparameter value.
-    
+
     Returns:
         tuple[list[torch.Tensor], list[torch.Tensor]]: A tuple of the advantages and returns lists.
-    '''
+    """
     # Initialize the advantages list.
     advantages = []
     gae = 0
@@ -29,7 +32,7 @@ def compute_gae(
     # Append a final value of 0 for the terminal state.
     values = values + [torch.zeros_like(values[0])]
 
-    # Iterate backward through the rewards and compute GAE. 
+    # Iterate backward through the rewards and compute GAE.
     for t in reversed(range(len(rewards))):
         delta = rewards[t] + gamma * values[t + 1] * (1 - dones[t]) - values[t]
 
@@ -44,6 +47,7 @@ def compute_gae(
 
     return advantages, returns
 
+
 def update_ppo(
     model: ActorCritic,
     optimizer: torch.optim.Optimizer,
@@ -52,8 +56,9 @@ def update_ppo(
     old_log_probs: list[torch.Tensor],
     returns: list[torch.Tensor],
     advantages: list[torch.Tensor],
-    clip_eps: float=0.2) -> float:
-    '''Function to update model parameters with PPO loss.
+    clip_eps: float = 0.2,
+) -> float:
+    """Function to update model parameters with PPO loss.
 
     Args:
         model (ActorCritic): ActorCritic network from model.py (for policy and value function).
@@ -66,14 +71,14 @@ def update_ppo(
         clip_eps (float): The PPO clipping parameter that controls policy update range.
 
     Returns:
-        float: The total loss value after the update. 
-    '''
+        float: The total loss value after the update.
+    """
     # Evaluate the current policy.
     new_log_probs, values, entropy = model.evaluate(states, actions)
 
     # Compute the ratio.
     ratio = torch.exp(new_log_probs - old_log_probs)
-    
+
     # Compute the clipped actor loss.
     surr1 = ratio * advantages
     surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * advantages
@@ -87,10 +92,15 @@ def update_ppo(
 
     # Compute the total loss.
     loss = actor_loss + 0.5 * critic_loss + 0.01 * entropy_loss
-    
+
     # Backpropagation.
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+
+    # Uncomment for debugging to test model.
+    # print(f"Actor Loss: {actor_loss.item():.4f}")
+    # print(f"Critic Loss: {critic_loss.item():.4f}")
+    # print(f"Entropy: {entropy.mean().item():.4f}")
 
     return loss.item()
