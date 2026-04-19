@@ -5,6 +5,7 @@ import torch.nn as nn
 #export PYTHONPATH=.
 #python3 rl/train.py
 
+# The FCNetwork class is just for debugging/testing purposes.
 class FCNetwork(nn.Module):
     '''A Fully Connected Neural Network class.'''
     def __init__(self, input_dim: int, output_dim: int) -> None:
@@ -40,7 +41,7 @@ class FCNetwork(nn.Module):
         '''
         return self.net(x)
 
-# Main code.
+# MAIN CODE.
 
 if __name__ == "__main__":
     # Import the balance environment class from g1_balance_env.py.
@@ -67,6 +68,9 @@ if __name__ == "__main__":
     print("Model initialized.")
     print(policy_net)
 
+    # Input observation tensor to be used in forward pass.
     obs_tensor = torch.tensor(obs, dtype=torch.float32).to(device)
+
+    # Call the forward pass in the class with the input observation tensor.
     action = policy_net(obs_tensor)
     print("Action output:", action)
