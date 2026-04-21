@@ -6,6 +6,7 @@
   },
   "workspaceFolder": "/workspace",
   "runArgs": [
+    "--gpus=all",
     "--env=DISPLAY",
     "--env=MUJOCO_GL=glfw",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix"

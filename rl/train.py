@@ -54,11 +54,8 @@ if __name__ == "__main__":
     # print("Starting PPO training setup")
     # print("CUDA available:", torch.cuda.is_available())
 
-    # UNCOMMENT THIS IF YOU ARE A CUDA USER.    
-    # device = torch.device("cuda") 
-
-    # UNCOMMENT THIS IF YOU ARE NOT A CUDA USER.
-    device = torch.device("cpu") 
+    # Automatically use CUDA or CPU    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create an instance of the balance environment class.
     env = G1BalanceEnv(render_mode=None)
