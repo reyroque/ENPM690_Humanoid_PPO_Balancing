@@ -1,14 +1,16 @@
+import os
+
 import torch
-import torch.nn as nn
+
 # Import the balance environment class from g1_balance_env.py.
 from rl.envs.g1_balance_env import G1BalanceEnv
-from rl.ppo.model import ActorCritic
 from rl.ppo.buffer import RolloutBuffer
+from rl.ppo.model import ActorCritic
 from rl.ppo.trainer import compute_gae, update_ppo
 
 # Run this in the terminal before running this file:
-#export PYTHONPATH=.
-#python3 rl/train.py
+# export PYTHONPATH=.
+# python3 rl/train.py
 
 # The FCNetwork class is just for debugging/testing purposes. It shows how many input and output
 # dimensions we'll need to work with.
@@ -38,7 +40,7 @@ from rl.ppo.trainer import compute_gae, update_ppo
 
 #     def forward(self, x: torch.Tensor) -> torch.Tensor:
 #         '''Function for the forward pass.
-        
+
 #         Args:
 #             x (torch.Tensor): Input observation tensor.
 
@@ -50,17 +52,17 @@ from rl.ppo.trainer import compute_gae, update_ppo
 # MAIN CODE.
 
 if __name__ == "__main__":
-
     # print("Starting PPO training setup")
     # print("CUDA available:", torch.cuda.is_available())
 
-    # Automatically use CUDA or CPU    
+    # Automatically use CUDA or CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create an instance of the balance environment class.
     env = G1BalanceEnv(render_mode=None)
-
     obs, _ = env.reset()
+
+    # Get the observation and action dimensions.
     obs_dim = obs.shape[0]
     action_dim = env.action_dim
 
@@ -80,97 +82,92 @@ if __name__ == "__main__":
     # Initialize the model.
     model = ActorCritic(obs_dim, action_dim).to(device)
 
-    # Initialize the buffer.
-    buffer = RolloutBuffer()
+    checkpoint_path = "checkpoints/ppo_model_latest.pth"
 
-    print("Model initialized.")
-    print(model)
-
-    # Start state.
-    state = obs
-
-    # This value can be adjusted.
-    max_steps = 1000 
-    
-    # Collect the rollout.
-    for step in range(max_steps):
-
-        # Convert the state to a tensor.
-        state_tensor = torch.as_tensor(state, dtype=torch.float32, device=device)
-
-        # Get the action from the model.
-        action, log_prob, value = model.act(state_tensor)
-
-        # Convert the action to NumPy for the environment.
-        # MuJoCo DOES NOT USE TENSORS!!!
-        action_np = action.detach().cpu().numpy()
-
-        # Step environment.
-        next_state, reward, done, trunc, _ = env.step(action_np)
-
-        # Store the data in the buffer.
-        buffer.add(
-            state_tensor,
-            action.detach(),
-            reward,
-            done,
-            log_prob.detach(),
-            value.detach()
-        )
-
-        # Move to the next state.
-        state = next_state 
-        print(f"Step {step}: Reward={reward:.4f}")
-
-        # Reset if the episode ends.
-        if done or trunc:
-            # print("Episode ended, resetting environment.")
-            state, _ = env.reset()
-    
-    # Compute the GAE values (advantages and returns).
-    advantages, returns = compute_gae(
-            buffer.rewards,
-            buffer.values,
-            buffer.dones
-        )
-
-    # Lists must be converted to stacked tensors before computing loss.
-    states = torch.stack(buffer.states)
-    actions = torch.stack(buffer.actions)
-    old_log_probs = torch.stack(buffer.log_probs)
-    advantages = torch.stack(advantages)
-    returns = torch.stack(returns)
-
-    # Normalize the advantages for stability.
-    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+    if os.path.exists(checkpoint_path):
+        model.load_state_dict(torch.load(checkpoint_path))
+        print("Loaded existing model.")
+    else:
+        print("Training from scratch.")
+    # print(model)
 
     # ADAM optimizer.
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
 
-    # PPO updates over multiple epochs.
-    NUM_EPOCHS = 4
-    # List of losses for average at the end.
-    losses = []
-    for epoch in range(NUM_EPOCHS):
-        # Compute the loss.
-        loss = update_ppo(
-            model,
-            optimizer,
-            states,
-            actions,
-            old_log_probs,
-            returns,
-            advantages
-        )
-        losses.append(loss)
-        # Print the loss for each epoch.
-        print(f"PPO Epoch {epoch}: Loss = {loss:.4f}")
-    # Find the average loss.
-    avg_loss = sum(losses) / len(losses)
-    print(f"Avg Loss: {avg_loss:.4f}")
+    # Adjust these values as needed.
+    NUM_ITERATIONS = 500  # Number of training loops. LOWER THIS FOR TEST RUNS, THIS TAKES A WHILE.
+    ROLLOUT_STEPS = 1000  # Number of rollout steps.
+    NUM_EPOCHS = 4  # Number of epochs for PPO updates/losses.
 
-    # Save the trained model.
-    torch.save(model.state_dict(), "ppo_model.pth")
+    for iteration in range(NUM_ITERATIONS):
+        # Initialize the buffer.
+        buffer = RolloutBuffer()
+        # Start a new state by resetting the environment.
+        state, _ = env.reset()
+
+        # Collect the rollout.
+        for step in range(ROLLOUT_STEPS):
+            # Convert the state to a tensor.
+            state_tensor = torch.as_tensor(state, dtype=torch.float32, device=device)
+
+            # Get the action from the model.
+            action, log_prob, value = model.act(state_tensor)
+
+            # Convert the action to NumPy for the environment.
+            # MuJoCo DOES NOT USE TENSORS!!!
+            action_np = action.detach().cpu().numpy()
+
+            # Step environment.
+            next_state, reward, done, trunc, _ = env.step(action_np)
+
+            # Store the data in the buffer.
+            buffer.add(
+                state_tensor, action.detach(), reward, done, log_prob.detach(), value.detach()
+            )
+
+            # Move to the next state.
+            state = next_state
+            # print(f"Step {step}: Reward={reward:.4f}")
+
+            # Reset if the episode ends.
+            if done or trunc:
+                # print("Episode ended, resetting environment.")
+                state, _ = env.reset()
+
+        # Compute the GAE values (advantages and returns).
+        advantages, returns = compute_gae(buffer.rewards, buffer.values, buffer.dones)
+
+        # Lists must be converted to stacked tensors before computing loss.
+        states = torch.stack(buffer.states)
+        actions = torch.stack(buffer.actions)
+        old_log_probs = torch.stack(buffer.log_probs)
+        advantages = torch.stack(advantages)
+        returns = torch.stack(returns)
+
+        # Normalize the advantages for stability.
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        # PPO updates over multiple epochs.
+        # List of losses for average at the end.
+        losses = []
+        for epoch in range(NUM_EPOCHS):
+            # Compute the loss.
+            loss = update_ppo(model, optimizer, states, actions, old_log_probs, returns, advantages)
+            losses.append(loss)
+            # Print the loss for each epoch.
+            # print(f"PPO Epoch {epoch}: Loss = {loss:.4f}")
+        # Find the average loss.
+        avg_loss = sum(losses) / len(losses)
+        print(f"Iteration {iteration} | Avg Loss: {avg_loss:.4f}")
+
+        # Save checkpoints for the model.
+        os.makedirs("checkpoints", exist_ok=True)
+        # Save the trained model, overwrite the latest data.
+        torch.save(model.state_dict(), checkpoint_path)
+
+        # Save versioned checkpoints every 50 iterations.
+        if iteration % 50 == 0:
+            torch.save(model.state_dict(), f"checkpoints/ppo_model_iter_{iteration}.pth")
 
     # Clear the buffer by calling the clear function. Otherwise, data
     # will continue accumulating.
