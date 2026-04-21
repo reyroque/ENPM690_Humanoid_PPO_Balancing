@@ -84,7 +84,9 @@ if __name__ == "__main__":
 
     checkpoint_path = "checkpoints/ppo_model_latest.pth"
 
-    if os.path.exists(checkpoint_path):
+    RESET_TRAINING = False  # Set this to True when you want to start the model from scratch.
+
+    if os.path.exists(checkpoint_path) and not RESET_TRAINING:
         model.load_state_dict(torch.load(checkpoint_path))
         print("Loaded existing model.")
     else:
