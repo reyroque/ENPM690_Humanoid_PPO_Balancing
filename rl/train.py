@@ -12,6 +12,9 @@ from rl.ppo.trainer import compute_gae, update_ppo
 # export PYTHONPATH=.
 # python3 rl/train.py
 
+# OR
+# python -m rl.train
+
 # The FCNetwork class is just for debugging/testing purposes. It shows how many input and output
 # dimensions we'll need to work with.
 # class FCNetwork(nn.Module):
@@ -55,7 +58,7 @@ if __name__ == "__main__":
     # print("Starting PPO training setup")
     # print("CUDA available:", torch.cuda.is_available())
 
-    # Automatically use CUDA or CPU
+    # Automatically use CUDA or CPU.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create an instance of the balance environment class.
