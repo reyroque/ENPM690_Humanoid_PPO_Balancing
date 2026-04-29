@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # Load the trained model from checkpoints/.
     # Try testing the various iterations from checkpoints/ by changing the model loaded. The
     # differences between each iteration can be seen.
-    model.load_state_dict(torch.load("checkpoints/ppo_model_latest.pth", map_location=device))
+    model.load_state_dict(torch.load("checkpoints/ppo_best.pth", map_location=device))
     model.eval()
 
     frames = []
