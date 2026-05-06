@@ -6,6 +6,7 @@ import os
 
 import cv2
 import torch
+from tqdm import tqdm
 
 from rl.envs.g1_balance_env import G1BalanceEnv
 from rl.ppo.model import ActorCritic
@@ -23,6 +24,10 @@ if __name__ == "__main__":
     obs, _ = env.reset()
     obs_dim = obs.shape[0]
     action_dim = env.action_dim
+
+    # Initialize statuses for when the loop ends early.
+    terminated_early = False
+    termination_reason = None
 
     # Initialize the model.
     model = ActorCritic(obs_dim, action_dim).to(device)
@@ -42,7 +47,10 @@ if __name__ == "__main__":
     if frame is not None:
         frames.append(frame)
 
-    for _ in range(1000):
+    # Display a progress bar for evaluation.
+    pbar = tqdm(range(1000), desc="Evaluating PPO policy")
+
+    for step in pbar:
         state_tensor = torch.tensor(state, dtype=torch.float32)
 
         with torch.no_grad():
@@ -58,9 +66,30 @@ if __name__ == "__main__":
         if frame is not None:
             frames.append(frame)
 
-        if done or trunc:
-            # print("Episode finished.")
+        # Show the reward live.
+        pbar.set_postfix(reward=f"{reward:.3f}")
+
+        #  Set statuses for episode termination.
+        if done:
+            terminated_early = True
+            termination_reason = "done"
             break
+        elif trunc:
+            terminated_early = True
+            termination_reason = "trunc"
+
+    # Use the statuses to print a statement for the user.
+    if terminated_early:
+        if termination_reason == "done":
+            print(
+                f"[INFO] Episode terminated early at step {step}/1000 (done=True: failure or terminal state)."
+            )
+        elif termination_reason == "trunc":
+            print(
+                f"[INFO] Episode terminated early at step {step}/1000 (trunc=True: time limit reached.)"
+            )
+    else:
+        print("[INFO] Episode completed full rollout.")
 
     # Close the environment.
     env.close()
@@ -75,3 +104,4 @@ if __name__ == "__main__":
             out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
 
         out.release()
+    print("Video file saved.")

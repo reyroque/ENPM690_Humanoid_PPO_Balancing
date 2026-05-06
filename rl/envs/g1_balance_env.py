@@ -135,10 +135,16 @@ class G1BalanceEnv(gym.Env):
 
         upright_bonus = 1.0
         height_reward = torso_height
-        angular_vel_penalty = -0.1 * np.linalg.norm(self.data.qvel[3:6])
+        # Reduced, most of the penalty came from angular velocity. The penalty
+        # was too harsh on motion and too weak on stability.
+        angular_vel_penalty = -0.02 * np.linalg.norm(self.data.qvel[3:6])
         control_penalty = -0.01 * np.linalg.norm(self.data.ctrl)
+        # Newly added to reward the robot for surviving.
+        survival_reward = 0.05
 
-        return upright_bonus + height_reward + angular_vel_penalty + control_penalty
+        return (
+            upright_bonus + height_reward + angular_vel_penalty + control_penalty + survival_reward
+        )
 
     def _is_done(self) -> bool:
         """Function to determine if the process is done.

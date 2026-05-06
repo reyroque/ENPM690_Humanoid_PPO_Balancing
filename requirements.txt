@@ -6,4 +6,7 @@ gymnasium
 mujoco
 tensorboard
 opencv-python
+tqdm
+pandas
+tabulate
 pyyaml

@@ -17,14 +17,15 @@ RUN apt-get update && apt-get install -y \
     libglew-dev \
     libosmesa6-dev \
     libx11-6 \
+    python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 
 COPY requirements.txt .
 
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
+RUN pip3 install --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 ENV MUJOCO_GL=osmesa
 

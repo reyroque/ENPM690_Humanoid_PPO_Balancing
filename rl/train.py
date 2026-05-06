@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
@@ -14,6 +15,21 @@ from rl.ppo.model import ActorCritic
 from rl.ppo.trainer import compute_gae, update_ppo
 
 # IMPORTANT NOTES:
+# IT IS HIGHLY RECOMMENDED YOU RUN THE CONTAINER FROM THE TERMINAL. TRYING TO USE A CONTAINER
+# WITH VSCODE IS VERY UNRELIABLE AND CAN CAUSE VARIOUS ISSUES.
+#
+# 1. Go to the directory for this project (cd ~/ENPM690_Humanoid_PPO_Balancing).
+#
+# 2. Build the image if there isn't one: docker build -f docker/Dockerfile -t <image_name> .
+#
+# 3. Run the container:
+# docker run -it --rm \
+#   -e DISPLAY=$DISPLAY \
+#   -v /tmp/.X11-unix:/tmp/.X11-unix \
+#   -v $(pwd):/workspace \
+#   -w /workspace \
+#   <image_name> bash
+#
 # Run this in the terminal before running this file:
 # export PYTHONPATH=.
 # python3 rl/train.py
@@ -28,6 +44,9 @@ from rl.ppo.trainer import compute_gae, update_ppo
 # 1. Run training
 # 2. Open TensorBoard in another terminal
 # 3. Open browser
+
+# WARNING: DOCKER CAN EAT UP SPACE. RUN THIS COMMAND EVERY NOW AND THEN TO SAVE MEMORY:
+# docker builder prune -a --filter "until=24h"
 
 # The FCNetwork class is just for debugging/testing purposes. It shows how many input and output
 # dimensions we'll need to work with.
@@ -77,6 +96,13 @@ def find_moving_average(data: list[float], window: int = 10) -> npt.NDArray[np.f
         npt.NDArray[np.float64]: A 1D NumPy array containing the smoothed
         (moving average) values.
     """
+    # Fallbacks for not enough data.
+    if len(data) == 0:
+        return np.array([])
+
+    if len(data) < window:
+        return np.array(data)
+
     return np.convolve(data, np.ones(window) / window, mode="valid")
 
 
@@ -85,13 +111,18 @@ def find_moving_average(data: list[float], window: int = 10) -> npt.NDArray[np.f
 episode_returns_list = []
 episode_lengths_list = []
 losses_list = []
+# List for creating a data table at the end.
+training_log = []
 
+# Initialize TensorBoard plots,
 writer = SummaryWriter("runs/ppo_balance")
 
+# Initialize index and steps.
 episode_idx = 0
 update_step = 0
 global_step = 0
 
+# Initialize the best reward (to be overwritten later in training).
 best_reward = -float("inf")
 
 if __name__ == "__main__":
@@ -131,7 +162,7 @@ if __name__ == "__main__":
 
     checkpoint_path = "checkpoints/ppo_model_latest.pth"
 
-    RESET_TRAINING = False  # Set this to True when you want to start the model from scratch.
+    RESET_TRAINING = True  # Set this to True when you want to start the model from scratch.
 
     if os.path.exists(checkpoint_path) and not RESET_TRAINING:
         model.load_state_dict(torch.load(checkpoint_path))
@@ -255,6 +286,20 @@ if __name__ == "__main__":
         # Display the average loss and best reward on the progress bar.
         pbar.set_postfix({"avg_loss": f"{avg_loss:.2f}", "best_reward": f"{best_reward:.2f}"})
 
+        training_log.append(
+            {
+                "iteration": iteration,
+                "avg_loss": float(avg_loss),
+                "best_reward": float(best_reward),
+                "avg_episode_return": float(np.mean(episode_returns_list[-10:]))
+                if len(episode_returns_list) >= 10
+                else float(np.mean(episode_returns_list)),
+                "avg_episode_length": float(np.mean(episode_lengths_list[-10:]))
+                if len(episode_lengths_list) >= 10
+                else float(np.mean(episode_lengths_list)),
+            }
+        )
+
         # Save checkpoints for the model.
         os.makedirs("checkpoints", exist_ok=True)
         # Save the trained model, overwrite the latest data.
@@ -270,6 +315,7 @@ if __name__ == "__main__":
 
     print("Data collection complete.")
 
+    # Create a directory to save the plots in.
     os.makedirs("plots", exist_ok=True)
 
     # Episode return plot.
@@ -283,12 +329,16 @@ if __name__ == "__main__":
 
     # Episode return plot (SMOOTHED).
     plt.figure()
-    plt.plot(find_moving_average(episode_returns_list))
-    plt.title("Episode Return (Smoothed)")
-    plt.xlabel("Episode")
-    plt.ylabel("Return")
-    plt.grid()
-    plt.savefig("plots/episode_return_smoothed.png")
+    smoothed = find_moving_average(episode_returns_list)
+    if len(smoothed) > 0:
+        plt.plot(smoothed)
+        plt.title("Episode Return (Smoothed)")
+        plt.xlabel("Episode")
+        plt.ylabel("Return")
+        plt.grid()
+        plt.savefig("plots/episode_return_smoothed.png")
+    else:
+        print("[WARN] Not enough data for moving average plot.")
 
     # Episode length plot.
     plt.figure()
@@ -307,3 +357,22 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.grid()
     plt.savefig("plots/loss.png")
+
+    print("Data plotting complete.")
+
+    # Create a directory to save the data table in.
+    os.makedirs("reports", exist_ok=True)
+
+    # Convert the data with Pandas.
+    df = pd.DataFrame(training_log)
+
+    # Save the converted data to a .csv file.
+    df.to_csv("reports/training_log.csv", index=False)
+
+    # Save the data to a .md file.
+    with open("reports/training_log.md", "w") as f:
+        f.write(df.to_markdown(index=False))
+
+    # Print the data to the terminal.
+    print("\n=== TRAINING SUMMARY TABLE ===")
+    print(df.tail(10).to_string(index=False))

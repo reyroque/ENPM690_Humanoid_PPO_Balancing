@@ -5,6 +5,9 @@
     "context": ".."
   },
   "workspaceFolder": "/workspace",
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
   "runArgs": [
     "--gpus=all",
     "--env=DISPLAY",
