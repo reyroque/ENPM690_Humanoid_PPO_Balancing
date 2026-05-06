@@ -103,4 +103,4 @@ def update_ppo(
     # print(f"Critic Loss: {critic_loss.item():.4f}")
     # print(f"Entropy: {entropy.mean().item():.4f}")
 
-    return loss.item()
+    return loss.item(), entropy.mean().item()

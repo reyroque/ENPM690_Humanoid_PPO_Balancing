@@ -110,7 +110,15 @@ def find_moving_average(data: list[float], window: int = 10) -> npt.NDArray[np.f
 # Lists for plotting at the end.
 episode_returns_list = []
 episode_lengths_list = []
-losses_list = []
+losses_list = []  # Track the loss during updates.
+success_list = []  # 1 if the episode reached max steps, 0 otherwise.
+entropy_list = []  # Track the entropy during PPO updates.
+
+reward_std_over_time = []
+success_rates_over_time = []
+entropy_over_time = []
+avg_return_over_time = []
+
 # List for creating a data table at the end.
 training_log = []
 
@@ -227,6 +235,10 @@ if __name__ == "__main__":
 
             # Episode boundary check.
             if done or trunc:
+                # Log the success before resetting.
+                success = 1 if episode_length >= env.max_steps else 0
+                success_list.append(success)
+
                 # Log the episode metrics before resetting.
                 writer.add_scalar("Reward/Episode", episode_return, episode_idx)
                 writer.add_scalar("EpisodeLength", episode_length, episode_idx)
@@ -266,14 +278,18 @@ if __name__ == "__main__":
         # List of losses for average at the end.
         losses = []
         for epoch in range(NUM_EPOCHS):
-            # Compute the loss.
-            loss = update_ppo(model, optimizer, states, actions, old_log_probs, returns, advantages)
+            # Compute the loss and entropy.
+            loss, entropy = update_ppo(
+                model, optimizer, states, actions, old_log_probs, returns, advantages
+            )
             losses.append(loss)
+            entropy_list.append(entropy)
             # Print the loss for each epoch.
             # print(f"PPO Epoch {epoch}: Loss = {loss:.4f}")
 
-            # Log the PPO training loss.
+            # Log the PPO training loss and the entropy.
             writer.add_scalar("Loss/PPO", loss, update_step)
+            writer.add_scalar("Policy/Entropy", entropy, update_step)
             update_step += 1
 
             # Add to the losses list for plotting at the end (this is
@@ -282,21 +298,43 @@ if __name__ == "__main__":
 
         # Find the average loss.
         avg_loss = sum(losses) / len(losses)
-        # print(f"Iteration {iteration} | Avg Loss: {avg_loss:.4f}")
+        # Compute statistics for the data.
+        if len(episode_returns_list) > 0:
+            avg_return = np.mean(episode_returns_list[-10:])  # Average return for last 10 episodes.
+            reward_std = np.std(episode_returns_list[-10:])
+            avg_length = np.mean(episode_lengths_list[-10:])
+            success_rate = np.mean(success_list[-10:])
+        else:
+            avg_return = 0
+            reward_std = 0
+            avg_length = 0
+            success_rate = 0
+
+        # Entropy updates.
+        if len(entropy_list) > 0:
+            avg_entropy = np.mean(entropy_list[-10:])
+        else:
+            avg_entropy = 0
+
+        # Append the data to the lists for plotting.
+        avg_return_over_time.append(avg_return)
+        reward_std_over_time.append(reward_std)
+        success_rates_over_time.append(success_rate)
+        entropy_over_time.append(avg_entropy)
+
         # Display the average loss and best reward on the progress bar.
         pbar.set_postfix({"avg_loss": f"{avg_loss:.2f}", "best_reward": f"{best_reward:.2f}"})
 
         training_log.append(
             {
                 "iteration": iteration,
-                "avg_loss": float(avg_loss),
-                "best_reward": float(best_reward),
-                "avg_episode_return": float(np.mean(episode_returns_list[-10:]))
-                if len(episode_returns_list) >= 10
-                else float(np.mean(episode_returns_list)),
-                "avg_episode_length": float(np.mean(episode_lengths_list[-10:]))
-                if len(episode_lengths_list) >= 10
-                else float(np.mean(episode_lengths_list)),
+                "avg_loss": avg_loss,
+                "best_reward": best_reward,
+                "avg_episode_return": avg_return,
+                "reward_std": reward_std,
+                "avg_episode_length": avg_length,
+                "success_rate": success_rate,
+                "entropy": avg_entropy,
             }
         )
 
@@ -357,6 +395,42 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.grid()
     plt.savefig("plots/loss.png")
+
+    # Success rate plot.
+    plt.figure()
+    plt.plot(success_rates_over_time)
+    plt.title("Success Rate")
+    plt.xlabel("Iteration")
+    plt.ylabel("Success Rate")
+    plt.grid()
+    plt.savefig("plots/success_rates.png")
+
+    # Reward std plot.
+    plt.figure()
+    plt.plot(reward_std_over_time)
+    plt.title("Reward Standard Deviation")
+    plt.xlabel("Iteration")
+    plt.ylabel("Std Dev")
+    plt.grid()
+    plt.savefig("plots/reward_std.png")
+
+    # Entropy plot.
+    plt.figure()
+    plt.plot(entropy_over_time)
+    plt.title("Policy Entropy")
+    plt.xlabel("Update Step")
+    plt.ylabel("Entropy")
+    plt.grid()
+    plt.savefig("plots/entropy.png")
+
+    # Average return per iteration plot.
+    plt.figure()
+    plt.plot(avg_return_over_time)
+    plt.title("Average Episode Return (Per Iteration)")
+    plt.xlabel("Iteration")
+    plt.ylabel("Average Return (last 10 episodes)")
+    plt.grid()
+    plt.savefig("plots/avg_return_per_iteration.png")
 
     print("Data plotting complete.")
 
