@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     checkpoint_path = "checkpoints/ppo_model_latest.pth"
 
-    RESET_TRAINING = True  # Set this to True when you want to start the model from scratch.
+    RESET_TRAINING = False  # Set this to True when you want to start the model from scratch.
 
     if os.path.exists(checkpoint_path) and not RESET_TRAINING:
         model.load_state_dict(torch.load(checkpoint_path))
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
 
     # Adjust these values as needed.
-    NUM_ITERATIONS = 500  # Number of training loops. LOWER THIS FOR TEST RUNS, THIS TAKES A WHILE.
+    NUM_ITERATIONS = 1500  # Number of training loops. LOWER THIS FOR TEST RUNS, THIS TAKES A WHILE.
     ROLLOUT_STEPS = 1000  # Number of rollout steps.
     NUM_EPOCHS = 4  # Number of epochs for PPO updates/losses.
 
